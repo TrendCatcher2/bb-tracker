@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrendCatcher — Bug Bounty Tracker</title>
+<style>
+:root{
+  --bg:#f4f4f5;--card:#fff;--text:#18181b;--muted:#71717a;--border:#e4e4e7;
+  --green:#1D9E75;--green-dark:#0F6E56;--radius:10px
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#18181b;--card:#27272a;--text:#f4f4f5;--muted:#a1a1aa;--border:#3f3f46}
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+header{background:var(--green);color:#fff;padding:16px 20px;display:flex;align-items:center;gap:10px}
+header h1{font-size:17px;font-weight:600}
+header span{font-size:12px;opacity:.9}
+nav{display:flex;gap:4px;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--border);overflow-x:auto}
+nav button{padding:8px 14px;font-size:13px;border:none;background:transparent;color:var(--muted);cursor:pointer;border-radius:8px;white-space:nowrap}
+nav button.active{background:var(--green);color:#fff}
+main{max-width:900px;margin:0 auto;padding:20px 16px}
+.section{display:none}
+.section.active{display:block}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.stat .label{font-size:12px;color:var(--muted)}
+.stat .value{font-size:24px;font-weight:600;margin-top:2px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.head h2{font-size:16px;font-weight:600}
+.btn{padding:8px 14px;font-size:13px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:var(--bg)}
+.btn-primary{background:var(--green);color:#fff;border-color:var(--green)}
+.btn-primary:hover{background:var(--green-dark)}
+.btn-sm{padding:4px 8px;font-size:12px}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+input,select,textarea{width:100%;padding:9px 11px;font-size:14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green)}
+textarea{min-height:90px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--border)}
+td{padding:8px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+.tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.t-critical{background:#fde2e2;color:#a32d2d}.t-high{background:#fde8c8;color:#92590a}
+.t-medium{background:#dcefc4;color:#3b6d11}.t-low{background:#cfe4fb;color:#185fa5}
+.t-paid{background:#c5efdd;color:#0f6e56}.t-pending{background:#fde8c8;color:#92590a}
+.t-draft{background:#e4e4e7;color:#52525b}
+.empty{text-align:center;color:var(--muted);padding:30px;font-size:14px}
+.cmd{background:#1e1e1e;color:#9fe1cb;font-family:'Courier New',monospace;font-size:12px;padding:10px 12px;border-radius:8px;white-space:pre-wrap;word-break:break-word;margin:6px 0;position:relative}
+.cmd button{position:absolute;top:6px;right:6px;background:#333;color:#aaa;border:none;padding:2px 8px;border-radius:5px;font-size:11px;cursor:pointer}
+.cmd button:hover{color:#fff}
+.method-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.method-tabs button{padding:6px 12px;font-size:12px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:20px;cursor:pointer}
+.method-tabs button.active{background:var(--green);color:#fff;border-color:var(--green)}
+.step-label{font-size:13px;font-weight:600;margin-top:14px}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto}
+.modal.open{display:flex}
+.modal-box{background:var(--card);border-radius:var(--radius);padding:20px;width:100%;max-width:460px}
+.modal-box h3{font-size:16px;margin-bottom:8px}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.del{color:#a32d2d;cursor:pointer;background:none;border:none;font-size:13px}
+@media(max-width:560px){.grid2{grid-template-columns:1fr}main{padding:14px 12px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>TrendCatcher</h1>
+    <span>Bug Bounty Tracker</span>
+  </div>
+</header>
+
+<nav>
+  <button class="active" data-tab="dashboard">Dashboard</button>
+  <button data-tab="targets">Targets</button>
+  <button data-tab="findings">Findings</button>
+  <button data-tab="methodology">Methodology</button>
+  <button data-tab="notes">Notes</button>
+</nav>
+
+<main>
+
+<section class="section active" id="dashboard">
+  <div class="row">
+    <div class="stat"><div class="label">Programs</div><div class="value" id="s-programs">0</div></div>
+    <div class="stat"><div class="label">Findings</div><div class="value" id="s-findings">0</div></div>
+    <div class="stat"><div class="label">Earned</div><div class="value" id="s-earned">$0</div></div>
+    <div class="stat"><div class="label">Pending</div><div class="value" id="s-pending">$0</div></div>
+  </div>
+  <div class="card">
+    <div class="head"><h2>Recent findings</h2></div>
+    <div id="recent"><div class="empty">No findings yet — add one in the Findings tab.</div></div>
+  </div>
+</section>
+
+<section class="section" id="targets">
+  <div class="head"><h2>Targets</h2><button class="btn btn-primary" onclick="openTarget()">+ Add Target</button></div>
+  <div class="card"><table><thead><tr><th>Program</th><th>Platform</th><th>Type</th><th>Reward</th><th>Status</th><th></th></tr></thead><tbody id="targets-body"></tbody></table></div>
+</section>
+
+<section class="section" id="findings">
+  <div class="head"><h2>Findings</h2><button class="btn btn-primary" onclick="openFinding()">+ Add Finding</button></div>
+  <div class="card"><table><thead><tr><th>Title</th><th>Target</th><th>Severity</th><th>Status</th><th>Bounty</th><th></th></tr></thead><tbody id="findings-body"></tbody></table></div>
+</section>
+
+<section class="section" id="methodology">
+  <div class="method-tabs" id="method-tabs"></div>
+  <div class="card" id="method-body"></div>
+</section>
+
+<section class="section" id="notes">
+  <div class="head"><h2>Notes</h2><button class="btn btn-primary" onclick="newNote()">+ New Note</button></div>
+  <div class="grid2">
+    <div>
+      <div id="notes-list"></div>
+    </div>
+    <div class="card">
+      <label>Title</label><input id="note-title" placeholder="Target or topic">
+      <label>Body</label><textarea id="note-body" style="min-height:200px" placeholder="Recon notes, endpoints, ideas..."></textarea>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="saveNote()">Save</button>
+        <button class="btn" onclick="deleteNote()">Delete</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div class="modal" id="target-modal">
+  <div class="modal-box">
+    <h3>Add Target</h3>
+    <label>Program name</label><input id="tg-name" placeholder="e.g. Hubstaff">
+    <div class="grid2">
+      <div><label>Platform</label><select id="tg-platform"><option>HackerOne</option><option>Bugcrowd</option><option>YesWeHack</option><option>Immunefi</option><option>Yogosha</option><option>Private</option></select></div>
+      <div><label>Type</label><select id="tg-type"><option>VDP</option><option>Paid</option></select></div>
+    </div>
+    <div class="grid2">
+      <div><label>Reward range</label><input id="tg-reward" placeholder="$100–$5k"></div>
+      <div><label>Status</label><select id="tg-status"><option>Active</option><option>Recon</option><option>Queued</option><option>Paused</option></select></div>
+    </div>
+    <label>Scope / notes</label><textarea id="tg-notes" placeholder="In-scope assets, tech stack, quirks..."></textarea>
+    <div class="modal-foot"><button class="btn" onclick="closeModal('target-modal')">Cancel</button><button class="btn btn-primary" onclick="saveTarget()">Save</button></div>
+  </div>
+</div>
+
+<div class="modal" id="finding-modal">
+  <div class="modal-box">
+    <h3>Add Finding</h3>
+    <label>Title</label><input id="fd-title" placeholder="Short description">
+    <div class="grid2">
+      <div><label>Target</label><input id="fd-target" placeholder="Program"></div>
+      <div><label>Severity</label><select id="fd-sev"><option>Critical</option><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+    </div>
+    <div class="grid2">
+      <div><label>Status</label><select id="fd-status"><option>Draft</option><option>Submitted</option><option>Triaged</option><option>Paid</option><option>Closed</option></select></div>
+      <div><label>Bounty ($)</label><input id="fd-bounty" type="number" min="0" placeholder="0"></div>
+    </div>
+    <label>Type</label><input id="fd-type" placeholder="IDOR, XSS, CORS...">
+    <label>Notes / PoC</label><textarea id="fd-notes" placeholder="Endpoint, repro steps..."></textarea>
+    <div class="modal-foot"><button class="btn" onclick="closeModal('finding-modal')">Cancel</button><button class="btn btn-primary" onclick="saveFinding()">Save</button></div>
+  </div>
+</div>
+
+<script>
+var store = {
+  get: function(k){ try { return JSON.parse(localStorage.getItem(k)) || []; } catch(e){ return []; } },
+  set: function(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+};
+var targets = store.get('tc2_targets');
+var findings = store.get('tc2_findings');
+var notes = store.get('tc2_notes');
+var activeNote = null;
+
+// ---- tabs ----
+var navBtns = document.querySelectorAll('nav button');
+navBtns.forEach(function(b){
+  b.onclick = function(){
+    navBtns.forEach(function(x){ x.classList.remove('active'); });
+    b.classList.add('active');
+    document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+    document.getElementById(b.dataset.tab).classList.add('active');
+    if(b.dataset.tab === 'dashboard') renderDashboard();
+  };
+});
+
+// ---- modals ----
+function openTarget(){ document.getElementById('target-modal').classList.add('open'); }
+function openFinding(){ document.getElementById('finding-modal').classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// ---- helper: make a cell with plain text (safe, never parsed as HTML) ----
+function cell(text){ var td = document.createElement('td'); td.textContent = text; return td; }
+function tag(text, cls){ var s = document.createElement('span'); s.className = 'tag ' + cls; s.textContent = text; var td = document.createElement('td'); td.appendChild(s); return td; }
+
+// ---- targets ----
+function saveTarget(){
+  var name = document.getElementById('tg-name').value.trim();
+  if(!name){ alert('Program name required'); return; }
+  targets.push({
+    id: Date.now(), name: name,
+    platform: document.getElementById('tg-platform').value,
+    type: document.getElementById('tg-type').value,
+    reward: document.getElementById('tg-reward').value,
+    status: document.getElementById('tg-status').value,
+    notes: document.getElementById('tg-notes').value
+  });
+  store.set('tc2_targets', targets);
+  closeModal('target-modal');
+  document.getElementById('tg-name').value='';
+  document.getElementById('tg-reward').value='';
+  document.getElementById('tg-notes').value='';
+  renderTargets();
+}
+function deleteTarget(id){
+  if(!confirm('Delete this target?')) return;
+  targets = targets.filter(function(t){ return t.id !== id; });
+  store.set('tc2_targets', targets);
+  renderTargets();
+}
+function renderTargets(){
+  var body = document.getElementById('targets-body');
+  body.innerHTML = '';
+  if(!targets.length){ body.innerHTML = '<tr><td colspan="6" class="empty">No targets yet</td></tr>'; return; }
+  targets.forEach(function(t){
+    var tr = document.createElement('tr');
+    tr.appendChild(cell(t.name));
+    tr.appendChild(cell(t.platform));
+    tr.appendChild(cell(t.type));
+    tr.appendChild(cell(t.reward || '—'));
+    tr.appendChild(cell(t.status));
+    var td = document.createElement('td');
+    var btn = document.createElement('button'); btn.className='del'; btn.textContent='Delete';
+    btn.onclick = function(){ deleteTarget(t.id); };
+    td.appendChild(btn); tr.appendChild(td);
+    body.appendChild(tr);
+  });
+}
+
+// ---- findings ----
+function saveFinding(){
+  var title = document.getElementById('fd-title').value.trim();
+  if(!title){ alert('Title required'); return; }
+  findings.push({
+    id: Date.now(), title: title,
+    target: document.getElementById('fd-target').value,
+    severity: document.getElementById('fd-sev').value,
+    status: document.getElementById('fd-status').value,
+    bounty: parseFloat(document.getElementById('fd-bounty').value) || 0,
+    type: document.getElementById('fd-type').value,
+    notes: document.getElementById('fd-notes').value,
+    date: new Date().toLocaleDateString()
+  });
+  store.set('tc2_findings', findings);
+  closeModal('finding-modal');
+  ['fd-title','fd-target','fd-bounty','fd-type','fd-notes'].forEach(function(id){ document.getElementById(id).value=''; });
+  renderFindings();
+}
+function deleteFinding(id){
+  if(!confirm('Delete this finding?')) return;
+  findings = findings.filter(function(f){ return f.id !== id; });
+  store.set('tc2_findings', findings);
+  renderFindings();
+}
+function sevClass(s){ return 't-' + s.toLowerCase(); }
+function statusClass(s){
+  if(s==='Paid') return 't-paid';
+  if(s==='Submitted'||s==='Triaged') return 't-pending';
+  return 't-draft';
+}
+function renderFindings(){
+  var body = document.getElementById('findings-body');
+  body.innerHTML = '';
+  if(!findings.length){ body.innerHTML = '<tr><td colspan="6" class="empty">No findings yet</td></tr>'; return; }
+  findings.forEach(function(f){
+    var tr = document.createElement('tr');
+    tr.appendChild(cell(f.title));
+    tr.appendChild(cell(f.target || '—'));
+    tr.appendChild(tag(f.severity, sevClass(f.severity)));
+    tr.appendChild(tag(f.status, statusClass(f.status)));
+    tr.appendChild(cell(f.bounty ? '$'+f.bounty : '—'));
+    var td = document.createElement('td');
+    var btn = document.createElement('button'); btn.className='del'; btn.textContent='Delete';
+    btn.onclick = function(){ deleteFinding(f.id); };
+    td.appendChild(btn); tr.appendChild(td);
+    body.appendChild(tr);
+  });
+}
+
+// ---- dashboard ----
+function renderDashboard(){
+  document.getElementById('s-programs').textContent = targets.length;
+  document.getElementById('s-findings').textContent = findings.length;
+  var earned = 0, pending = 0;
+  findings.forEach(function(f){
+    if(f.status==='Paid') earned += f.bounty;
+    if(f.status==='Submitted'||f.status==='Triaged') pending += f.bounty;
+  });
+  document.getElementById('s-earned').textContent = '$' + earned.toLocaleString();
+  document.getElementById('s-pending').textContent = '$' + pending.toLocaleString();
+  var recent = document.getElementById('recent');
+  recent.innerHTML = '';
+  if(!findings.length){ recent.innerHTML = '<div class="empty">No findings yet — add one in the Findings tab.</div>'; return; }
+  findings.slice().reverse().slice(0,5).forEach(function(f){
+    var div = document.createElement('div');
+    div.style.cssText = 'display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)';
+    var left = document.createElement('div');
+    var title = document.createElement('div'); title.style.fontWeight='600'; title.style.fontSize='13px'; title.textContent = f.title;
+    var sub = document.createElement('div'); sub.style.fontSize='12px'; sub.style.color='var(--muted)'; sub.textContent = (f.target||'—') + ' · ' + f.date;
+    left.appendChild(title); left.appendChild(sub);
+    var s = document.createElement('span'); s.className = 'tag ' + sevClass(f.severity); s.textContent = f.severity;
+    div.appendChild(left); div.appendChild(s);
+    recent.appendChild(div);
+  });
+}
+
+// ---- notes ----
+function newNote(){
+  notes.push({ id: Date.now(), title: 'New note', body: '' });
+  store.set('tc2_notes', notes);
+  renderNotes();
+  editNote(notes.length - 1);
+}
+function renderNotes(){
+  var list = document.getElementById('notes-list');
+  list.innerHTML = '';
+  if(!notes.length){ list.innerHTML = '<div class="empty">No notes yet</div>'; return; }
+  notes.forEach(function(n, i){
+    var c = document.createElement('div');
+    c.className = 'card';
+    c.style.cursor = 'pointer';
+    c.style.padding = '12px';
+    if(activeNote === i){ c.style.borderColor = 'var(--green)'; }
+    var t = document.createElement('div'); t.style.fontWeight='600'; t.style.fontSize='14px'; t.textContent = n.title || 'Untitled';
+    var b = document.createElement('div'); b.style.fontSize='12px'; b.style.color='var(--muted)'; b.textContent = (n.body||'').slice(0,60);
+    c.appendChild(t); c.appendChild(b);
+    c.onclick = function(){ editNote(i); };
+    list.appendChild(c);
+  });
+}
+function editNote(i){
+  activeNote = i;
+  document.getElementById('note-title').value = notes[i].title || '';
+  document.getElementById('note-body').value = notes[i].body || '';
+  renderNotes();
+}
+function saveNote(){
+  if(activeNote === null){ newNote(); return; }
+  notes[activeNote] = { id: notes[activeNote].id, title: document.getElementById('note-title').value, body: document.getElementById('note-body').value };
+  store.set('tc2_notes', notes);
+  renderNotes();
+}
+function deleteNote(){
+  if(activeNote === null) return;
+  if(!confirm('Delete this note?')) return;
+  notes.splice(activeNote, 1);
+  store.set('tc2_notes', notes);
+  activeNote = null;
+  document.getElementById('note-title').value='';
+  document.getElementById('note-body').value='';
+  renderNotes();
+}
+
+// ---- methodology (static reference) ----
+var methods = {
+  'IDOR / BOLA': [
+    ['1. Find object references', 'Look for numeric/UUID params: /api/users/{id}, /reports/{id}'],
+    ['2. Compare two accounts', 'Account A (you) tries to read Account B\u0027s resource ID'],
+    ['3. Swap the ID', 'GET /api/reports/1337 with your own auth token. 200 + victim data = IDOR'],
+    ['4. Try every method', 'GET, POST, PUT, DELETE, PATCH on the same endpoint']
+  ],
+  'CORS': [
+    ['1. Send an Origin', 'curl -H "Origin: https://evil.com" -I https://target.com/api'],
+    ['2. Check the reply', 'Access-Control-Allow-Origin reflects evil.com = misconfig'],
+    ['3. Test null', 'curl -H "Origin: null" -I https://target.com/api'],
+    ['4. Watch credentials', 'ACAO reflected + Allow-Credentials: true = exploitable']
+  ],
+  'XSS': [
+    ['1. Find reflections', 'Inject a harmless marker into every input and search the response'],
+    ['2. Match the context', 'HTML body vs attribute vs JS vs href each need a different break-out'],
+    ['3. DOM sinks', 'Search JS for innerHTML, document.write, location usage'],
+    ['4. Stored', 'Profile fields, comments, filenames that render elsewhere']
+  ],
+  'SSRF': [
+    ['1. Find fetchers', 'Params like url=, src=, redirect=, webhook callbacks'],
+    ['2. Point inward', 'http://127.0.0.1/ , cloud metadata IP, internal ranges'],
+    ['3. Bypass filters', 'Decimal/hex IP, URL encoding, DNS rebinding'],
+    ['4. Blind', 'Use an out-of-band collaborator host to confirm']
+  ],
+  'Recon': [
+    ['1. Subdomains', 'subfinder -d target.com -o subs.txt'],
+    ['2. Live hosts', 'cat subs.txt | httpx -title -tech-detect -o live.txt'],
+    ['3. Templates', 'nuclei -l live.txt -severity critical,high,medium'],
+    ['4. Fuzz', 'ffuf -w wordlist.txt -u https://target.com/FUZZ -mc 200,403']
+  ]
+};
+function renderMethodTabs(){
+  var tabs = document.getElementById('method-tabs');
+  Object.keys(methods).forEach(function(name, i){
+    var b = document.createElement('button');
+    b.textContent = name;
+    if(i===0) b.classList.add('active');
+    b.onclick = function(){
+      tabs.querySelectorAll('button').forEach(function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      showMethod(name);
+    };
+    tabs.appendChild(b);
+  });
+  showMethod(Object.keys(methods)[0]);
+}
+function showMethod(name){
+  var box = document.getElementById('method-body');
+  box.innerHTML = '';
+  methods[name].forEach(function(step){
+    var label = document.createElement('div'); label.className='step-label'; label.textContent = step[0];
+    box.appendChild(label);
+    var cmd = document.createElement('div'); cmd.className='cmd';
+    var code = document.createElement('span'); code.textContent = step[1];  // textContent = never executes
+    cmd.appendChild(code);
+    var copy = document.createElement('button'); copy.textContent='copy';
+    copy.onclick = function(){
+      navigator.clipboard.writeText(step[1]).then(function(){ copy.textContent='✓'; setTimeout(function(){ copy.textContent='copy'; }, 1200); });
+    };
+    cmd.appendChild(copy);
+    box.appendChild(cmd);
+  });
+}
+
+// ---- init ----
+renderTargets();
+renderFindings();
+renderNotes();
+renderMethodTabs();
+renderDashboard();
+</script>
+</body>
+</html>
